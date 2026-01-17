@@ -1,2 +1,1 @@
-# GroupProject-History
-GroupProject-History
+# forum-history-service
