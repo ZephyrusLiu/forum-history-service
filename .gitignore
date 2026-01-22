@@ -5,3 +5,4 @@ dist
 .env.local
 .venv
 __pycache__
+test_history_service.py
