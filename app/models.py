@@ -4,15 +4,15 @@ from datetime import datetime
 class History(db.Model):
   __tablename__ = "history"
 
-  id = db.Column(db.Integer, primary_key=True)
-  user_id = db.Column(db.String(64), nullable=False)
-  post_id = db.Column(db.String(64), nullable=False)
-  created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+  history_id = db.Column("historyId", db.Integer, primary_key=True)
+  user_id = db.Column("userId", db.String(64), nullable=False)
+  post_id = db.Column("postId", db.String(64), nullable=False)
+  view_date = db.Column("viewDate", db.DateTime, default=datetime.utcnow, nullable=False)
 
   def to_dict(self):
     return {
-      "id": self.id,
+      "historyId": self.history_id,
       "userId": self.user_id,
       "postId": self.post_id,
-      "createdAt": self.created_at.isoformat()
+      "viewDate": self.view_date.isoformat()
     }
