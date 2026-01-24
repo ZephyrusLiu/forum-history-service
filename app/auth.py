@@ -1,7 +1,12 @@
 from functools import wraps
 import jwt
 from flask import current_app, request, g
-from .message import Message
+from .message import RErrorMessage
+
+def _error_response(code: str, message: str, status: int):
+  response = RErrorMessage(error_text=message, response_code=status)
+  response.add("code", code)
+  return response.get()
 
 def _get_bearer_token(req) -> str | None:
   auth = req.headers.get("Authorization", "")
@@ -22,18 +27,18 @@ def login_required(fn):
   def wrapper(*args, **kwargs):
     token = _get_bearer_token(request)
     if not token:
-      return Message.error("UNAUTHORIZED", "Missing Bearer token", 401)
+      return _error_response("UNAUTHORIZED", "Missing Bearer token", 401)
 
     try:
       claims = _decode_jwt(token)
     except jwt.ExpiredSignatureError:
-      return Message.error("UNAUTHORIZED", "Token expired", 401)
+      return _error_response("UNAUTHORIZED", "Token expired", 401)
     except jwt.InvalidTokenError:
-      return Message.error("UNAUTHORIZED", "Invalid token", 401)
+      return _error_response("UNAUTHORIZED", "Invalid token", 401)
 
     user_id = claims.get("sub") or claims.get("id")
     if user_id is None:
-      return Message.error("UNAUTHORIZED", "Token missing sub/id", 401)
+      return _error_response("UNAUTHORIZED", "Token missing sub/id", 401)
 
     # type = role (user/admin/super)
     role = (claims.get("type") or "").strip().lower()
@@ -42,10 +47,10 @@ def login_required(fn):
     status = (claims.get("status") or "").strip().lower()
     if status not in {"unverified", "active", "banned"}:
       # If unknown, treat as unauthorized to be safe
-      return Message.error("UNAUTHORIZED", "Invalid status claim", 401)
+      return _error_response("UNAUTHORIZED", "Invalid status claim", 401)
 
     if status == "banned":
-      return Message.error("FORBIDDEN", "User is banned", 403)
+      return _error_response("FORBIDDEN", "User is banned", 403)
 
     # Normalize for controllers
     g.user = {
@@ -67,11 +72,11 @@ def permission_checking(*allowed_roles: str):
     def wrapper(*args, **kwargs):
       user = getattr(g, "user", None)
       if not user:
-        return Message.error("UNAUTHORIZED", "Missing user context", 401)
+        return _error_response("UNAUTHORIZED", "Missing user context", 401)
 
       role = (user.get("role") or "").strip().lower()
       if normalized_roles and role not in normalized_roles:
-        return Message.error("FORBIDDEN", "Insufficient permissions", 403)
+        return _error_response("FORBIDDEN", "Insufficient permissions", 403)
 
       return fn(*args, **kwargs)
     return wrapper
