@@ -58,3 +58,21 @@ def login_required(fn):
 
     return fn(*args, **kwargs)
   return wrapper
+
+def permission_checking(*allowed_roles: str):
+  normalized_roles = {role.strip().lower() for role in allowed_roles if role}
+
+  def decorator(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+      user = getattr(g, "user", None)
+      if not user:
+        return Message.error("UNAUTHORIZED", "Missing user context", 401)
+
+      role = (user.get("role") or "").strip().lower()
+      if normalized_roles and role not in normalized_roles:
+        return Message.error("FORBIDDEN", "Insufficient permissions", 403)
+
+      return fn(*args, **kwargs)
+    return wrapper
+  return decorator
