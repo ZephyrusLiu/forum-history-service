@@ -4,9 +4,8 @@ from ..services.history_service import HistoryService
 
 service = HistoryService()
 
-def _error_response(code: str, message: str, status: int, *, error_type: str | None = None):
+def _error_response(message: str, status: int, *, error_type: str | None = None):
   response = RErrorMessage(error_text=message, response_code=status)
-  response.add("code", code)
   if error_type:
     response.add("type", error_type)
   return response.get()
@@ -31,7 +30,7 @@ def create_history(req):
   post_id = data.get("postId") or data.get("post_id")
 
   if not post_id:
-    return _error_response("VALIDATION_ERROR", "postId is required", 400)
+    return _error_response("postId is required", 400)
 
   # Enforce: only Published posts are recorded.
   if not _is_published(data):
@@ -39,14 +38,13 @@ def create_history(req):
 
   user_id = (g.user or {}).get("userId")
   if not user_id:
-    return _error_response("UNAUTHORIZED", "Missing userId in token", 401)
+    return _error_response("Missing userId in token", 401)
 
   try:
     created = service.create(user_id=user_id, post_id=str(post_id))
     return jsonify({"result": created}), 201
   except Exception as e:
     return _error_response(
-      "DB_ERROR",
       "db operation failed",
       503,
       error_type=type(e).__name__,
@@ -55,14 +53,13 @@ def create_history(req):
 def list_history(req):
   user_id = (g.user or {}).get("userId")
   if not user_id:
-    return _error_response("UNAUTHORIZED", "Missing userId in token", 401)
+    return _error_response("Missing userId in token", 401)
 
   try:
     items = service.list_by_user(user_id=user_id)
     return jsonify({"result": items}), 200
   except Exception as e:
     return _error_response(
-      "DB_ERROR",
       "db operation failed",
       503,
       error_type=type(e).__name__,

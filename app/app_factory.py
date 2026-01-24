@@ -22,7 +22,6 @@ def create_app():
 
   @app.errorhandler(HTTPException)
   def handle_http_exception(err):
-    code = err.name.upper().replace(" ", "_")
     description = err.description or "Request failed"
     response = RErrorMessage(error_text=description, response_code=err.code or 500)
     response.add("code", code)

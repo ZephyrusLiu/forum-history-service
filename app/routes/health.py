@@ -17,7 +17,6 @@ def health():
       pass
 
     response = RErrorMessage(error_text="db connection failed", response_code=503)
-    response.add("code", "DB_ERROR")
     response.add("type", type(e).__name__)
     response.add("status", "error")
     response.add("db", "error")
