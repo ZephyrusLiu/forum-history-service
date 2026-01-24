@@ -1,5 +1,5 @@
 from flask import Blueprint, request
-from ..auth import login_required
+from utils.python.auth import login_required
 from ..controllers.history_controller import create_history, list_history
 
 history_bp = Blueprint("history", __name__)
