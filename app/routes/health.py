@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify
 from sqlalchemy import text
 from ..db import db
+from ..message import Message
 
 health_bp = Blueprint("health", __name__)
 
@@ -15,8 +16,10 @@ def health():
     except Exception:
       pass
 
-    return jsonify({
-      "status": "error",
-      "db": "error",
-      "error": {"code": "DB_ERROR", "message": "db connection failed", "type": type(e).__name__}
-    }), 503
+    return Message.error(
+      "DB_ERROR",
+      "db connection failed",
+      503,
+      error_type=type(e).__name__,
+      extra={"status": "error", "db": "error"},
+    )

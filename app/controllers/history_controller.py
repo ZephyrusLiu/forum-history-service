@@ -1,4 +1,5 @@
 from flask import jsonify, g
+from ..message import Message
 from ..services.history_service import HistoryService
 
 service = HistoryService()
@@ -23,9 +24,7 @@ def create_history(req):
   post_id = data.get("postId") or data.get("post_id")
 
   if not post_id:
-    return jsonify({
-      "error": {"code": "VALIDATION_ERROR", "message": "postId is required"}
-    }), 400
+    return Message.error("VALIDATION_ERROR", "postId is required", 400)
 
   # Enforce: only Published posts are recorded.
   if not _is_published(data):
@@ -33,29 +32,31 @@ def create_history(req):
 
   user_id = (g.user or {}).get("userId")
   if not user_id:
-    return jsonify({
-      "error": {"code": "UNAUTHORIZED", "message": "Missing userId in token"}
-    }), 401
+    return Message.error("UNAUTHORIZED", "Missing userId in token", 401)
 
   try:
     created = service.create(user_id=user_id, post_id=str(post_id))
     return jsonify({"result": created}), 201
   except Exception as e:
-    return jsonify({
-      "error": {"code": "DB_ERROR", "message": "db operation failed", "type": type(e).__name__}
-    }), 503
+    return Message.error(
+      "DB_ERROR",
+      "db operation failed",
+      503,
+      error_type=type(e).__name__,
+    )
 
 def list_history(req):
   user_id = (g.user or {}).get("userId")
   if not user_id:
-    return jsonify({
-      "error": {"code": "UNAUTHORIZED", "message": "Missing userId in token"}
-    }), 401
+    return Message.error("UNAUTHORIZED", "Missing userId in token", 401)
 
   try:
     items = service.list_by_user(user_id=user_id)
     return jsonify({"result": items}), 200
   except Exception as e:
-    return jsonify({
-      "error": {"code": "DB_ERROR", "message": "db operation failed", "type": type(e).__name__}
-    }), 503
+    return Message.error(
+      "DB_ERROR",
+      "db operation failed",
+      503,
+      error_type=type(e).__name__,
+    )

@@ -1,9 +1,7 @@
 from functools import wraps
 import jwt
-from flask import current_app, jsonify, request, g
-
-def _json_error(code: str, message: str, status: int):
-  return jsonify({"error": {"code": code, "message": message}}), status
+from flask import current_app, request, g
+from .message import Message
 
 def _get_bearer_token(req) -> str | None:
   auth = req.headers.get("Authorization", "")
@@ -24,18 +22,18 @@ def login_required(fn):
   def wrapper(*args, **kwargs):
     token = _get_bearer_token(request)
     if not token:
-      return _json_error("UNAUTHORIZED", "Missing Bearer token", 401)
+      return Message.error("UNAUTHORIZED", "Missing Bearer token", 401)
 
     try:
       claims = _decode_jwt(token)
     except jwt.ExpiredSignatureError:
-      return _json_error("UNAUTHORIZED", "Token expired", 401)
+      return Message.error("UNAUTHORIZED", "Token expired", 401)
     except jwt.InvalidTokenError:
-      return _json_error("UNAUTHORIZED", "Invalid token", 401)
+      return Message.error("UNAUTHORIZED", "Invalid token", 401)
 
     user_id = claims.get("sub") or claims.get("id")
     if user_id is None:
-      return _json_error("UNAUTHORIZED", "Token missing sub/id", 401)
+      return Message.error("UNAUTHORIZED", "Token missing sub/id", 401)
 
     # type = role (user/admin/super)
     role = (claims.get("type") or "").strip().lower()
@@ -44,10 +42,10 @@ def login_required(fn):
     status = (claims.get("status") or "").strip().lower()
     if status not in {"unverified", "active", "banned"}:
       # If unknown, treat as unauthorized to be safe
-      return _json_error("UNAUTHORIZED", "Invalid status claim", 401)
+      return Message.error("UNAUTHORIZED", "Invalid status claim", 401)
 
     if status == "banned":
-      return _json_error("FORBIDDEN", "User is banned", 403)
+      return Message.error("FORBIDDEN", "User is banned", 403)
 
     # Normalize for controllers
     g.user = {
