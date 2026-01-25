@@ -3,9 +3,13 @@ from dotenv import load_dotenv
 
 # Load .env BEFORE importing app factory/config
 BASE_DIR = os.path.dirname(__file__)
-dotenv_path = os.path.join(BASE_DIR, ".env")
-if os.path.exists(dotenv_path):
-  load_dotenv(dotenv_path=dotenv_path, override=False)
+REPO_ROOT = os.path.abspath(os.path.join(BASE_DIR, os.pardir))
+root_env = os.path.join(REPO_ROOT, ".env")
+service_env = os.path.join(BASE_DIR, ".env")
+if os.path.exists(root_env):
+  load_dotenv(dotenv_path=root_env, override=False)
+if os.path.exists(service_env):
+  load_dotenv(dotenv_path=service_env, override=False)
 
 from app.app_factory import create_app
 
