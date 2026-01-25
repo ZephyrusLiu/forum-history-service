@@ -23,15 +23,17 @@ def create_app():
   @app.errorhandler(HTTPException)
   def handle_http_exception(err):
     description = err.description or "Request failed"
-    response = RErrorMessage(error_text=description, response_code=err.code or 500)
-    response.add("code", code)
+    status_code = err.code or 500
+    response = RErrorMessage(error_text=description, response_code=status_code)
+    response.add("code", status_code)
     return response.get()
 
   @app.errorhandler(Exception)
   def handle_unexpected_error(err):
     app.logger.exception("Unhandled exception")
-    response = RErrorMessage(error_text="Unexpected server error", response_code=500)
-    response.add("code", "INTERNAL_SERVER_ERROR")
+    status_code = 500
+    response = RErrorMessage(error_text="Unexpected server error", response_code=status_code)
+    response.add("code", status_code)
     response.add("type", type(err).__name__)
     return response.get()
 

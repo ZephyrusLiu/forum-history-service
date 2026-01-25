@@ -17,6 +17,10 @@ This service records a logged-in user’s browsing history for **Published** pos
   - If not published => returns `{ result: null, skipped: true }` and does **not** write DB.
 - `GET /history`
   - Returns `{ result: [...] }` with newest first.
+- `GET /history?keyword=<word>`
+  - Performs keyword search by fetching post details from Post service and
+    matching against `title/description/content` (case-insensitive).
+  - Returns only **Published** posts that match the keyword.
 
 ## Run locally
 ```bash
