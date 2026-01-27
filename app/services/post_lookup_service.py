@@ -20,7 +20,10 @@ class PostLookupService:
 
     results: dict[str, Any] = {}
     for post_id in post_ids:
-      url = f"{base_url}/posts/{post_id}"
+      if base_url.endswith("/api"):
+        url = f"{base_url}/posts/{post_id}"
+      else:
+        url = f"{base_url}/api/posts/{post_id}"
       try:
         resp = requests.get(url, headers=headers, timeout=self.timeout_seconds)
       except requests.RequestException:

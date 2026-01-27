@@ -1,3 +1,4 @@
+from datetime import datetime
 from flask import jsonify, g
 from ..message import RErrorMessage
 from ..services.history_service import HistoryService
@@ -43,28 +44,27 @@ def _post_matches_keyword(post_data: dict, keyword: str) -> bool:
   ).lower()
   return keyword.lower() in text
 
-def _filter_history_by_keyword(items: list[dict], keyword: str, auth_header: str | None) -> list[dict]:
-  keyword = (keyword or "").strip()
-  if not keyword:
-    return items
-
-  post_ids = [str(item.get("postId")) for item in items if item.get("postId")]
-  if not post_ids:
-    return []
-
-  post_payloads = post_lookup.fetch_posts_by_ids(post_ids, auth_header)
-  filtered: list[dict] = []
+def _merge_history_with_posts(
+  items: list[dict], post_payloads: dict, *, require_published: bool = True
+) -> list[dict]:
+  merged: list[dict] = []
   for item in items:
     post_id = str(item.get("postId"))
     payload = _unwrap_post_payload(post_payloads.get(post_id, {}))
     if not payload:
       continue
-    if not _is_published(payload):
+    if require_published and not _is_published(payload):
       continue
-    if not _post_matches_keyword(payload, keyword):
-      continue
-    filtered.append(item)
-  return filtered
+    merged.append({**item, "post": payload})
+  return merged
+
+def _parse_view_date(value: str | None) -> datetime | None:
+  if not value:
+    return None
+  try:
+    return datetime.strptime(value, "%Y-%m-%d")
+  except ValueError:
+    return None
 
 def create_history(req):
   data = req.get_json(silent=True) or {}
@@ -97,10 +97,35 @@ def list_history(req):
     return _error_response("Missing userId in token", 401)
 
   try:
-    items = service.list_by_user(user_id=user_id)
+    date_value = (req.args.get("date") or "").strip()
+    parsed_date = _parse_view_date(date_value)
+    if date_value and not parsed_date:
+      return _error_response("date must be in YYYY-MM-DD format", 400)
+
+    items = (
+      service.list_by_user_on_date(user_id=user_id, view_date=parsed_date)
+      if parsed_date
+      else service.list_by_user(user_id=user_id)
+    )
     keyword = (req.args.get("keyword") or "").strip()
-    if keyword:
-      items = _filter_history_by_keyword(items, keyword, req.headers.get("Authorization"))
+    post_ids = [str(item.get("postId")) for item in items if item.get("postId")]
+    post_payloads = (
+      post_lookup.fetch_posts_by_ids(post_ids, req.headers.get("Authorization"))
+      if post_ids
+      else {}
+    )
+
+    if post_payloads:
+      items = _merge_history_with_posts(items, post_payloads, require_published=True)
+      if keyword:
+        items = [
+          item
+          for item in items
+          if _post_matches_keyword(item.get("post") or {}, keyword)
+        ]
+    elif keyword:
+      items = []
+
     return jsonify({"result": items}), 200
   except Exception as e:
     return _error_response(
