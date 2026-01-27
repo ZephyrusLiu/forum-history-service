@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from ..db import db
 from ..models import History
 
@@ -19,6 +20,25 @@ class HistoryService:
     try:
       items = (
         History.query.filter_by(user_id=user_id)
+        .order_by(History.view_date.desc())
+        .all()
+      )
+      return [x.to_dict() for x in items]
+    except Exception:
+      try:
+        db.session.rollback()
+      except Exception:
+        pass
+      raise
+
+  def list_by_user_on_date(self, user_id: str, view_date: datetime):
+    try:
+      start = datetime(view_date.year, view_date.month, view_date.day)
+      end = start + timedelta(days=1)
+      items = (
+        History.query.filter(History.user_id == user_id)
+        .filter(History.view_date >= start)
+        .filter(History.view_date < end)
         .order_by(History.view_date.desc())
         .all()
       )
