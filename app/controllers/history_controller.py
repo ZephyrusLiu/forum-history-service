@@ -97,15 +97,37 @@ def list_history(req):
     return _error_response("Missing userId in token", 401)
 
   try:
+    page_raw = (req.args.get("page") or "1").strip()
+    page_size_raw = (req.args.get("pageSize") or "20").strip()
+    try:
+      page = int(page_raw)
+      page_size = int(page_size_raw)
+    except ValueError:
+      return _error_response("page and pageSize must be integers", 400)
+
+    if page < 1 or page_size < 1:
+      return _error_response("page and pageSize must be positive", 400)
+    if page_size > 100:
+      return _error_response("pageSize must be <= 100", 400)
+
     date_value = (req.args.get("date") or "").strip()
     parsed_date = _parse_view_date(date_value)
     if date_value and not parsed_date:
       return _error_response("date must be in YYYY-MM-DD format", 400)
 
-    items = (
-      service.list_by_user_on_date(user_id=user_id, view_date=parsed_date)
+    items, total = (
+      service.list_by_user_on_date_paginated(
+        user_id=user_id,
+        view_date=parsed_date,
+        page=page,
+        page_size=page_size,
+      )
       if parsed_date
-      else service.list_by_user(user_id=user_id)
+      else service.list_by_user_paginated(
+        user_id=user_id,
+        page=page,
+        page_size=page_size,
+      )
     )
     keyword = (req.args.get("keyword") or "").strip()
     post_ids = [str(item.get("postId")) for item in items if item.get("postId")]
@@ -126,7 +148,21 @@ def list_history(req):
     elif keyword:
       items = []
 
-    return jsonify({"result": items}), 200
+    total_pages = (total + page_size - 1) // page_size if total else 0
+    return (
+      jsonify(
+        {
+          "result": {
+            "items": items,
+            "page": page,
+            "pageSize": page_size,
+            "total": total,
+            "totalPages": total_pages,
+          }
+        }
+      ),
+      200,
+    )
   except Exception as e:
     return _error_response(
       "db operation failed",
